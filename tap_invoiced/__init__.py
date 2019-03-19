@@ -4,6 +4,7 @@ import singer
 from singer import utils
 from tap_invoiced.discover import discover_streams
 from tap_invoiced.sync import sync_streams
+import sys
 
 REQUIRED_CONFIG_KEYS = ["start_date", "api_key"]
 LOGGER = singer.get_logger()
@@ -25,7 +26,7 @@ def main():
             sync_streams(args.config, args.state, args.catalog)
         except Exception as e:
             LOGGER.critical(e)
-            raise e
+            sys.exit(1)
 
 
 if __name__ == "__main__":
