@@ -17,7 +17,8 @@ STREAM_SDK_OBJECTS = {
 def sync_streams(config, state, catalog):
 
     # Build the Invoiced client
-    is_sandbox = config['sandbox'] if 'sandbox' in config else False
+    # config values are _always_ strings.
+    is_sandbox = config.get('sandbox') == 'true'
     client = invoiced.Client(config['api_key'], is_sandbox)
 
     # Find the user-selected streams
