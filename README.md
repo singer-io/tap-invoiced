@@ -19,4 +19,4 @@ This tap:
 
 ---
 
-Copyright &copy; 2019 Invoiced
+Copyright &copy; 2019 Stitch
