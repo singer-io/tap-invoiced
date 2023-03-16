@@ -7,7 +7,7 @@
     "amount": {
       "type": [
         "null",
-        "integer"
+        "number"
       ]
     },
     "catalog_item": {
