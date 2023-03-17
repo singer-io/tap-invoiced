@@ -86,8 +86,9 @@
     "tiers": {
       "type": [
         "null",
-        "string"
-      ]
+        "object"
+      ],
+      "properties": {}
     },
     "created_at": {
       "type": [
