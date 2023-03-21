@@ -12,6 +12,7 @@ This tap:
   - [Customers](https://invoiced.com/docs/api/#customer-object)
   - [Estimates](https://invoiced.com/docs/api/#estimate-object)
   - [Invoices](https://invoiced.com/docs/api/#invoice-object)
+  - [Plans](https://invoiced.com/docs/api/#plan-object)
   - [Subscriptions](https://invoiced.com/docs/api/#subscription-object)
   - [Transactions](https://invoiced.com/docs/api/#transaction-object)
 - Outputs the schema for each resource
