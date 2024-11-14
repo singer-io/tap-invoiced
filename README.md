@@ -12,7 +12,7 @@ This tap:
   - [Customers](https://developer.invoiced.com/api/customers#customer-object)
   - [Estimates](https://developer.invoiced.com/api/estimates#estimate-object)
   - [Invoices](https://developer.invoiced.com/api/invoices#invoice-object)
-  - [Payments]((https://developer.invoiced.com/api/payments#payment-object))
+  - [Payments](https://developer.invoiced.com/api/payments#payment-object)
   - [Plans](https://developer.invoiced.com/api/plans#plan-object)
   - [Subscriptions](https://developer.invoiced.com/api/subscriptions#subscription-object)
   - [Transactions](https://web.archive.org/web/20160904134609/http://invoiced.com/docs/api/#transactions) (deprecated)
