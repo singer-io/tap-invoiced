@@ -11,7 +11,7 @@ setup(
     py_modules=["tap_invoiced"],
     install_requires=[
         "singer-python>=5.4.1",
-        "invoiced==0.12.0"
+        "invoiced==1.4.0"
     ],
     entry_points="""
     [console_scripts]
