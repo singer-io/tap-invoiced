@@ -1,6 +1,9 @@
 import singer
 from singer import utils, metadata, Transformer
 import invoiced
+import requests
+import backoff
+from requests.exceptions import HTTPError, ConnectionError, Timeout
 
 LOGGER = singer.get_logger()
 REPLICATION_KEY = "updated_at"
@@ -56,6 +59,26 @@ def get_selected_streams(catalog):
     return selected_streams
 
 
+@backoff.on_exception(
+    backoff.expo,
+    (HTTPError, ConnectionError, Timeout),
+    max_tries=5,
+    factor=2,
+    on_backoff=lambda details: LOGGER.warning(
+        f"Retrying {details['target'].__name__}, attempt {details['tries']}, "
+        f"waiting {details['wait']:0.1f}s after error: {repr(details['exception'])}"
+    )
+)
+def fetch_with_backoff(sdkObject, page, bookmark):
+    return sdkObject.list(
+        per_page=100,
+        page=page,
+        include="updated_at",
+        sort="updated_at ASC",
+        updated_after=bookmark
+    )
+
+
 def sync(client, config, state, stream_name, schema, stream_metadata):
     '''
       Syncs a given stream.
@@ -80,12 +103,10 @@ def sync(client, config, state, stream_name, schema, stream_metadata):
             LOGGER.info("Fetching page # {} of {}".format(str(page),
                                                           stream_name))
             sdkObject = getattr(client, STREAM_SDK_OBJECTS[stream_name])
-            objects, listMetadata = sdkObject.list(
-                    per_page=100,
-                    page=page,
-                    include="updated_at",
-                    sort="updated_at ASC",
-                    updated_after=bookmark)
+
+            # Call the retry-wrapped function
+            objects, listMetadata = fetch_with_backoff(sdkObject, page, bookmark)
+
             LOGGER.info("{} objects returned".format(len(objects)))
 
             for obj in objects:
