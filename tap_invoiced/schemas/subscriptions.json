@@ -192,6 +192,37 @@
         "string"
       ],
       "format": "date-time"
+    },
+
+    "amount": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "bill_in": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "bill_in_advance_days": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "paused": {
+      "type": [
+        "null",
+        "boolean"
+      ]
+    },
+    "url": {
+      "type": [
+        "null",
+        "string"
+      ]
     }
   }
 }
