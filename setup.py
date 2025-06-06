@@ -10,8 +10,8 @@ setup(
     classifiers=["Programming Language :: Python :: 3 :: Only"],
     py_modules=["tap_invoiced"],
     install_requires=[
-        "singer-python>=5.4.1",
-        "invoiced==0.12.0"
+        "singer-python=6.1.1",
+        "invoiced==3.0.0"
     ],
     entry_points="""
     [console_scripts]
