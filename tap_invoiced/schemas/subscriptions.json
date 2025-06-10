@@ -23,13 +23,6 @@
         "properties": {}
       }
     },
-    "approval": {
-      "type": [
-        "null",
-        "object"
-      ],
-      "properties": {}
-    },
     "cancel_at_period_end": {
       "type": [
         "null",
@@ -139,20 +132,6 @@
         "number"
       ]
     },
-    "renewed_last": {
-      "type": [
-        "null",
-        "string"
-      ],
-      "format": "date-time"
-    },
-    "renews_next": {
-      "type": [
-        "null",
-        "string"
-      ],
-      "format": "date-time"
-    },
     "start_date": {
       "type": [
         "null",
@@ -222,6 +201,18 @@
       "type": [
         "null",
         "string"
+      ]
+    },
+    "object": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "ship_to": {
+      "type": [
+        "null",
+        "object"
       ]
     }
   }

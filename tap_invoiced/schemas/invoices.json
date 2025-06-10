@@ -105,12 +105,6 @@
         "string"
       ]
     },
-    "needs_attention": {
-      "type": [
-        "null",
-        "boolean"
-      ]
-    },
     "next_payment_attempt": {
       "type": [
         "null",

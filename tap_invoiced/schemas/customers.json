@@ -201,7 +201,6 @@
       ],
       "format": "date-time"
     },
-
     "currency": {
       "type": [
         "null",
@@ -245,6 +244,12 @@
       ]
     },
     "cc_gateway": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "autopay_delay_days": {
       "type": [
         "null",
         "integer"
