@@ -81,3 +81,27 @@ class TestSyncBackoff(unittest.TestCase):
 
         self.assertEqual(sdk_object_mock.list.call_count, 1)
 
+
+
+    @patch("time.sleep", return_value=None)
+    def test_sync_raises_after_max_retries(self, _):
+        """
+        Test that sync raises HTTPError after max retries are exceeded.
+        """
+        client_mock = MagicMock()
+        config = {"start_date": "2020-01-01"}
+        state = {}
+        stream_name = "credit_notes"
+        schema = {}
+        stream_metadata = {}
+
+        sdk_object_mock = MagicMock()
+        # Simulate HTTPError for all attempts (max_tries=5)
+        sdk_object_mock.list.side_effect = [requests.exceptions.HTTPError("Persistent error")] * 5
+
+        setattr(client_mock, STREAM_SDK_OBJECTS[stream_name], sdk_object_mock)
+
+        with self.assertRaises(requests.exceptions.HTTPError):
+            sync(client_mock, config, state, stream_name, schema, stream_metadata)
+
+        self.assertEqual(sdk_object_mock.list.call_count, 5)

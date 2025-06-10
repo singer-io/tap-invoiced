@@ -57,8 +57,6 @@ def get_selected_streams(catalog):
             selected_streams.append(stream.tap_stream_id)
 
     return selected_streams
-
-
 @backoff.on_exception(
     backoff.expo,
     (HTTPError, ConnectionError, Timeout),
