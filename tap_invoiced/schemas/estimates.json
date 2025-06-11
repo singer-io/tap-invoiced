@@ -10,13 +10,6 @@
         "integer"
       ]
     },
-    "approval": {
-      "type": [
-        "null",
-        "object"
-      ],
-      "properties": {}
-    },
     "approved": {
       "type": [
         "null",
@@ -134,12 +127,6 @@
       "type": [
         "null",
         "string"
-      ]
-    },
-    "paid": {
-      "type": [
-        "null",
-        "boolean"
       ]
     },
     "payment_terms": {
