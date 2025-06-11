@@ -254,6 +254,12 @@
         "null",
         "integer"
       ]
+    },
+    "object": {
+      "type": [
+        "null",
+        "string"
+      ]
     }
   }
 }

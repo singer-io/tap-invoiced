@@ -172,6 +172,12 @@
         "null",
         "string"
       ]
+    },
+    "object": {
+      "type": [
+        "null",
+        "string"
+      ]
     }
   }
 }
