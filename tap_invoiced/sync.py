@@ -11,7 +11,6 @@ STREAM_SDK_OBJECTS = {
     'invoices': 'Invoice',
     'plans': 'Plan',
     'subscriptions': 'Subscription',
-    'transactions': 'Transaction',
 }
 
 
