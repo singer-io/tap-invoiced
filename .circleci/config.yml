@@ -27,4 +27,4 @@ workflows:
   commit:
     jobs:
       - build:
-          context: circleci-user
+          context: .circleci-user
