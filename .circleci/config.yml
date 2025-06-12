@@ -1,30 +1,48 @@
-version: 2.1
-
-executors:
-  docker-executor:
-    docker:
-      - image: 218546966473.dkr.ecr.us-east-1.amazonaws.com/circle-ci:stitch-tap-tester
-
+version: 2
 jobs:
   build:
-    executor: docker-executor
+    docker:
+      - image: 218546966473.dkr.ecr.us-east-1.amazonaws.com/circle-ci:stitch-tap-tester
     steps:
       - checkout
       - run:
           name: 'Setup'
           command: |
-            python3 -m venv /usr/local/share/virtualenvs/tap-invoiced
+            python3 -mvenv /usr/local/share/virtualenvs/tap-invoiced
             source /usr/local/share/virtualenvs/tap-invoiced/bin/activate
-            pip install -U 'pip==22.2.2' setuptools
+            pip install -U 'pip==22.2.2' 'setuptools==65.3.0'
             pip install .[dev]
+
       - run:
           name: 'Unit Tests'
           command: |
             source /usr/local/share/virtualenvs/tap-invoiced/bin/activate
-            nosetests tests
+            pip install nose coverage
+            nosetests --with-coverage --cover-erase --cover-package=tap-invoiced --cover-html-dir=htmlcov tap-invoiced/tests/unittests
+            coverage html
+      - store_test_results:
+          path: test_output/report.xml
+      - store_artifacts:
+          path: htmlcov
+      - add_ssh_keys
+
+
 workflows:
   version: 2
   commit:
     jobs:
       - build:
-          context: .circleci-user
+          context: circleci-user
+  build_daily:
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - master
+    jobs:
+      - build:
+          context: circleci-user
+
+
