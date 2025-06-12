@@ -18,8 +18,7 @@ jobs:
           command: |
             source /usr/local/share/virtualenvs/tap-invoiced/bin/activate
             pip install nose coverage
-            nosetests --with-coverage --cover-erase --cover-package=tap-invoiced --cover-html-dir=htmlcov tap-invoiced/tests/unittests
-            coverage html
+            nosetests tests
       - store_test_results:
           path: test_output/report.xml
       - store_artifacts:
