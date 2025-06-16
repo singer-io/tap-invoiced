@@ -17,7 +17,10 @@ STREAM_SDK_OBJECTS = {
     'transactions': 'Transaction',
 }
 
-class RetriableHTTPError(Exception):
+class Server5xxError(Exception):
+    pass
+
+class Server429Error(Exception):
     pass
 
 def sync_streams(config, state, catalog):
@@ -72,13 +75,25 @@ def fetch_with_backoff(sdkObject, page, bookmark):
     except HTTPError as e:
         response = getattr(e, 'response', None)
         status_code = getattr(response, 'status_code', None)
-        if status_code is not None and 500 <= status_code < 600:
-            raise RetriableHTTPError(e)
+        # Use SDK's error handler if available
+        client = getattr(sdkObject, 'client', None)
+        if client and hasattr(client, 'handle_api_error') and response is not None:
+            client.handle_api_error(response)
+        # Fallback: raise retry exceptions for 429 and 5xx
+        if status_code == 429:
+            raise Server429Error()
+        if status_code and 500 <= status_code < 600:
+            raise Server5xxError()
+        raise
+    except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError) as e:
+        client = getattr(sdkObject, 'client', None)
+        if client and hasattr(client, 'handle_network_error'):
+            client.handle_network_error(e)
         raise
 
 @backoff.on_exception(
     backoff.expo,
-    (RetriableHTTPError, ConnectionError, Timeout),
+    (Server5xxError, Server429Error, ConnectionError, Timeout),
     max_tries=5,
     factor=2,
     on_backoff=lambda details: LOGGER.warning(
