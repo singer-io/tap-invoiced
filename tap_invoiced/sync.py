@@ -17,6 +17,8 @@ STREAM_SDK_OBJECTS = {
     'transactions': 'Transaction',
 }
 
+class RetriableHTTPError(Exception):
+    pass
 
 def sync_streams(config, state, catalog):
 
@@ -57,9 +59,26 @@ def get_selected_streams(catalog):
             selected_streams.append(stream.tap_stream_id)
 
     return selected_streams
+
+def fetch_with_backoff(sdkObject, page, bookmark):
+    try:
+        return sdkObject.list(
+            per_page=100,
+            page=page,
+            include="updated_at",
+            sort="updated_at ASC",
+            updated_after=bookmark
+        )
+    except HTTPError as e:
+        response = getattr(e, 'response', None)
+        status_code = getattr(response, 'status_code', None)
+        if status_code is not None and 500 <= status_code < 600:
+            raise RetriableHTTPError(e)
+        raise
+
 @backoff.on_exception(
     backoff.expo,
-    (HTTPError, ConnectionError, Timeout),
+    (RetriableHTTPError, ConnectionError, Timeout),
     max_tries=5,
     factor=2,
     on_backoff=lambda details: LOGGER.warning(
@@ -67,15 +86,8 @@ def get_selected_streams(catalog):
         f"waiting {details['wait']:0.1f}s after error: {repr(details['exception'])}"
     )
 )
-def fetch_with_backoff(sdkObject, page, bookmark):
-    return sdkObject.list(
-        per_page=100,
-        page=page,
-        include="updated_at",
-        sort="updated_at ASC",
-        updated_after=bookmark
-    )
-
+def fetch_with_backoff_retry(*args, **kwargs):
+    return fetch_with_backoff(*args, **kwargs)
 
 def sync(client, config, state, stream_name, schema, stream_metadata):
     '''
@@ -103,7 +115,7 @@ def sync(client, config, state, stream_name, schema, stream_metadata):
             sdkObject = getattr(client, STREAM_SDK_OBJECTS[stream_name])
 
             # Call the retry-wrapped function
-            objects, listMetadata = fetch_with_backoff(sdkObject, page, bookmark)
+            objects, listMetadata = fetch_with_backoff_retry(sdkObject, page, bookmark)
 
             LOGGER.info("{} objects returned".format(len(objects)))
 
