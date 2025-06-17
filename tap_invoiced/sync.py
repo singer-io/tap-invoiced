@@ -3,6 +3,8 @@ from singer import utils, metadata, Transformer
 import invoiced
 import requests
 import backoff
+from invoiced.errors import RateLimitError
+from invoiced.errors import RateLimitError
 from requests.exceptions import HTTPError, ConnectionError, Timeout
 
 LOGGER = singer.get_logger()
@@ -63,37 +65,9 @@ def get_selected_streams(catalog):
 
     return selected_streams
 
-def fetch_with_backoff(sdkObject, page, bookmark):
-    try:
-        return sdkObject.list(
-            per_page=100,
-            page=page,
-            include="updated_at",
-            sort="updated_at ASC",
-            updated_after=bookmark
-        )
-    except HTTPError as e:
-        response = getattr(e, 'response', None)
-        status_code = getattr(response, 'status_code', None)
-        # Use SDK's error handler if available
-        client = getattr(sdkObject, 'client', None)
-        if client and hasattr(client, 'handle_api_error') and response is not None:
-            client.handle_api_error(response)
-        # Fallback: raise retry exceptions for 429 and 5xx
-        if status_code == 429:
-            raise Server429Error()
-        if status_code and 500 <= status_code < 600:
-            raise Server5xxError()
-        raise
-    except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError) as e:
-        client = getattr(sdkObject, 'client', None)
-        if client and hasattr(client, 'handle_network_error'):
-            client.handle_network_error(e)
-        raise
-
 @backoff.on_exception(
     backoff.expo,
-    (Server5xxError, Server429Error, ConnectionError, Timeout),
+    (Server5xxError, ConnectionError, Timeout, RateLimitError),
     max_tries=5,
     factor=2,
     on_backoff=lambda details: LOGGER.warning(
@@ -101,8 +75,29 @@ def fetch_with_backoff(sdkObject, page, bookmark):
         f"waiting {details['wait']:0.1f}s after error: {repr(details['exception'])}"
     )
 )
-def fetch_with_backoff_retry(*args, **kwargs):
-    return fetch_with_backoff(*args, **kwargs)
+def fetch_with_backoff_retry(sdkObject, page, bookmark):
+    try:
+        objects, metadata = sdkObject.list(
+            per_page=100,
+            page=page,
+            include="updated_at",
+            sort="updated_at ASC",
+            updated_after=bookmark
+        )
+        return objects, metadata
+    except HTTPError as e:
+        response = getattr(e, 'response', None)
+        status_code = getattr(response, 'status_code', None)
+        if status_code and 500 <= status_code < 600:
+            raise Server5xxError()
+        if status_code == 429:
+            raise RateLimitError(response.text)
+        raise
+    except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError) as e:
+        client = getattr(sdkObject, 'client', None)
+        if client and hasattr(client, 'handle_network_error'):
+            client.handle_network_error(e)
+        raise
 
 def sync(client, config, state, stream_name, schema, stream_metadata):
     '''
