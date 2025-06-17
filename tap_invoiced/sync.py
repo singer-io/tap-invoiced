@@ -67,7 +67,7 @@ def get_selected_streams(catalog):
 
 @backoff.on_exception(
     backoff.expo,
-    (Server5xxError, ConnectionError, Timeout, RateLimitError),
+    (Server5xxError, ConnectionError, RateLimitError),
     max_tries=5,
     factor=2,
     on_backoff=lambda details: LOGGER.warning(
@@ -85,6 +85,7 @@ def fetch_with_backoff_retry(sdkObject, page, bookmark):
             updated_after=bookmark
         )
         return objects, metadata
+
     except HTTPError as e:
         response = getattr(e, 'response', None)
         status_code = getattr(response, 'status_code', None)
@@ -93,11 +94,7 @@ def fetch_with_backoff_retry(sdkObject, page, bookmark):
         if status_code == 429:
             raise RateLimitError(response.text)
         raise
-    except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError) as e:
-        client = getattr(sdkObject, 'client', None)
-        if client and hasattr(client, 'handle_network_error'):
-            client.handle_network_error(e)
-        raise
+
 
 def sync(client, config, state, stream_name, schema, stream_metadata):
     '''
