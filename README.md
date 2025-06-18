@@ -14,7 +14,6 @@ This tap:
   - [Invoices](https://invoiced.com/docs/api/#invoice-object)
   - [Plans](https://invoiced.com/docs/api/#plan-object)
   - [Subscriptions](https://invoiced.com/docs/api/#subscription-object)
-  - [Transactions](https://invoiced.com/docs/api/#transaction-object)
 - Outputs the schema for each resource
 - Incrementally pulls data based on the input state
 

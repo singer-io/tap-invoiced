@@ -200,6 +200,66 @@
         "string"
       ],
       "format": "date-time"
+    },
+    "currency": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "owner": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "avalara_entity_use_code": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "avalara_exemption_number": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "sign_up_url": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "statement_pdf_url": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "ach_gateway": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "cc_gateway": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "autopay_delay_days": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "object": {
+      "type": [
+        "null",
+        "string"
+      ]
     }
   }
 }

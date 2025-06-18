@@ -14,7 +14,6 @@ STREAM_SDK_OBJECTS = {
     'invoices': 'Invoice',
     'plans': 'Plan',
     'subscriptions': 'Subscription',
-    'transactions': 'Transaction',
 }
 
 def sync_streams(config, state, catalog):
