@@ -1,7 +1,6 @@
 import unittest
 from unittest.mock import patch, MagicMock
-import requests
-from tap_invoiced.sync import Server5xxError
+from invoiced.errors import ApiConnectionError, ApiError, RateLimitError
 from tap_invoiced.sync import sync, STREAM_SDK_OBJECTS
 
 
@@ -11,12 +10,8 @@ class TestSyncBackoff(unittest.TestCase):
     def test_sync_retries_on_server_error(self, _):
         client = MagicMock()
         sdk_obj = MagicMock()
-
-        # Create a mock response with 500 error
-        mock_response = MagicMock()
-        mock_response.status_code = 500
-        http_error = requests.exceptions.HTTPError(response=mock_response)
-
+        # Create a mock invoiced.erros.ApiError with status_code = 500
+        http_error = ApiError(message="Internal Server Error", status_code=500)
         sdk_obj.list.side_effect = [
             http_error,
             http_error,
@@ -33,12 +28,8 @@ class TestSyncBackoff(unittest.TestCase):
     def test_sync_succeeds_after_retries(self, _):
         client = MagicMock()
         sdk_obj = MagicMock()
-
-        # Create a mock HTTPError with response.status_code = 500
-        error_response = MagicMock()
-        error_response.status_code = 500
-        http_error = requests.exceptions.HTTPError("Temporary 500 error")
-        http_error.response = error_response
+        # Create a mock invoiced.erros.ApiError with status_code = 500
+        http_error = ApiError(message="Temporary 500 error", status_code=500)
 
         # Make the list method raise twice, then succeed
         sdk_obj.list.side_effect = [
@@ -62,15 +53,14 @@ class TestSyncBackoff(unittest.TestCase):
             sync(client, {"start_date": "2020-01-01"}, {}, "credit_notes", {}, {})
         self.assertEqual(sdk_obj.list.call_count, 1)
 
-
     @patch("time.sleep", return_value=None)
     def test_connection_error(self, _):
         client = MagicMock()
         sdk_obj = MagicMock()
-        sdk_obj.list.side_effect = requests.exceptions.ConnectionError()
+        sdk_obj.list.side_effect = ApiConnectionError(message="Connection Error")
         setattr(client, STREAM_SDK_OBJECTS["credit_notes"], sdk_obj)
 
-        with self.assertRaises(requests.exceptions.ConnectionError):
+        with self.assertRaises(ApiConnectionError):
             sync(client, {"start_date": "2020-01-01"}, {}, "credit_notes", {}, {})
 
         self.assertEqual(sdk_obj.list.call_count, 5)
@@ -80,10 +70,7 @@ class TestSyncBackoff(unittest.TestCase):
     def test_sync_retries_on_rate_limit_error(self, _):
         client = MagicMock()
         sdk_obj = MagicMock()
-        # Mock HTTPError with response.status_code = 429
-        mock_response = MagicMock()
-        mock_response.status_code = 429
-        http_error = requests.exceptions.HTTPError(response=mock_response)
+        http_error = RateLimitError(message="Rate Limit Error", status_code=429)
         sdk_obj.list.side_effect = [http_error] * 5
         setattr(client, STREAM_SDK_OBJECTS["credit_notes"], sdk_obj)
 
@@ -91,3 +78,7 @@ class TestSyncBackoff(unittest.TestCase):
             sync(client, {"start_date": "2020-01-01"}, {}, "credit_notes", {}, {})
 
         self.assertEqual(sdk_obj.list.call_count, 5)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

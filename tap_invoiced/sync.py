@@ -3,9 +3,7 @@ from singer import utils, metadata, Transformer
 import invoiced
 import requests
 import backoff
-from invoiced.errors import RateLimitError
-from invoiced.errors import RateLimitError
-from requests.exceptions import HTTPError, ConnectionError, Timeout
+from invoiced.errors import ApiConnectionError, ApiError, RateLimitError
 
 LOGGER = singer.get_logger()
 REPLICATION_KEY = "updated_at"
@@ -18,12 +16,6 @@ STREAM_SDK_OBJECTS = {
     'subscriptions': 'Subscription',
     'transactions': 'Transaction',
 }
-
-class Server5xxError(Exception):
-    pass
-
-class Server429Error(Exception):
-    pass
 
 def sync_streams(config, state, catalog):
 
@@ -67,34 +59,26 @@ def get_selected_streams(catalog):
 
 @backoff.on_exception(
     backoff.expo,
-    (Server5xxError, ConnectionError, RateLimitError),
+    (ApiConnectionError, ApiError),
     max_tries=5,
-    factor=2,
-    on_backoff=lambda details: LOGGER.warning(
-        f"Retrying {details['target'].__name__}, attempt {details['tries']}, "
-        f"waiting {details['wait']:0.1f}s after error: {repr(details['exception'])}"
-    )
+    factor=2
+)
+@backoff.on_exception(
+    backoff.constant,
+    RateLimitError,
+    max_tries=5,
+    jitter=None,
+    interval=1
 )
 def fetch_with_backoff_retry(sdkObject, page, bookmark):
-    try:
-        objects, metadata = sdkObject.list(
-            per_page=100,
-            page=page,
-            include="updated_at",
-            sort="updated_at ASC",
-            updated_after=bookmark
-        )
-        return objects, metadata
-
-    except HTTPError as e:
-        response = getattr(e, 'response', None)
-        status_code = getattr(response, 'status_code', None)
-        if status_code and 500 <= status_code < 600:
-            raise Server5xxError()
-        if status_code == 429:
-            raise RateLimitError(response.text)
-        raise
-
+    objects, metadata = sdkObject.list(
+        per_page=100,
+        page=page,
+        include="updated_at",
+        sort="updated_at ASC",
+        updated_after=bookmark
+    )
+    return objects, metadata
 
 def sync(client, config, state, stream_name, schema, stream_metadata):
     '''
