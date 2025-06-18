@@ -5,7 +5,6 @@ from tap_invoiced.sync import sync, STREAM_SDK_OBJECTS
 
 
 class TestSyncBackoff(unittest.TestCase):
-
     @patch("time.sleep", return_value=None)
     def test_sync_retries_on_server_error(self, _):
         client = MagicMock()
@@ -65,7 +64,6 @@ class TestSyncBackoff(unittest.TestCase):
 
         self.assertEqual(sdk_obj.list.call_count, 5)
 
-
     @patch("time.sleep", return_value=None)
     def test_sync_retries_on_rate_limit_error(self, _):
         client = MagicMock()
@@ -78,7 +76,3 @@ class TestSyncBackoff(unittest.TestCase):
             sync(client, {"start_date": "2020-01-01"}, {}, "credit_notes", {}, {})
 
         self.assertEqual(sdk_obj.list.call_count, 5)
-
-
-if __name__ == "__main__":
-    unittest.main(verbosity=2)

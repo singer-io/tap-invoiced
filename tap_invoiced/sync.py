@@ -68,7 +68,7 @@ def get_selected_streams(catalog):
     RateLimitError,
     max_tries=5,
     jitter=None,
-    interval=1
+    interval=60
 )
 def fetch_with_backoff_retry(sdkObject, page, bookmark):
     objects, metadata = sdkObject.list(
