@@ -19,6 +19,11 @@ jobs:
             source /usr/local/share/virtualenvs/tap-invoiced/bin/activate
             pip install nose coverage
             nosetests tests
+      - run:
+          name: 'JSON Validator'
+          command: |
+            source /usr/local/share/virtualenvs/tap-invoiced/bin/activate
+            stitch-validate-json tap_invoiced/schemas/*.json
       - store_test_results:
           path: test_output/report.xml
       - store_artifacts:
