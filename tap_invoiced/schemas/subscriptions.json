@@ -23,13 +23,6 @@
         "properties": {}
       }
     },
-    "approval": {
-      "type": [
-        "null",
-        "object"
-      ],
-      "properties": {}
-    },
     "cancel_at_period_end": {
       "type": [
         "null",
@@ -130,7 +123,7 @@
     "quantity": {
       "type": [
         "null",
-        "number"
+        "integer"
       ]
     },
     "recurring_total": {
@@ -138,20 +131,6 @@
         "null",
         "number"
       ]
-    },
-    "renewed_last": {
-      "type": [
-        "null",
-        "string"
-      ],
-      "format": "date-time"
-    },
-    "renews_next": {
-      "type": [
-        "null",
-        "string"
-      ],
-      "format": "date-time"
     },
     "start_date": {
       "type": [
@@ -192,6 +171,49 @@
         "string"
       ],
       "format": "date-time"
+    },
+
+    "amount": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "bill_in": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "bill_in_advance_days": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "paused": {
+      "type": [
+        "null",
+        "boolean"
+      ]
+    },
+    "url": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "object": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "ship_to": {
+      "type": [
+        "null",
+        "object"
+      ]
     }
   }
 }

@@ -154,6 +154,30 @@
         "string"
       ],
       "format": "date-time"
+    },
+    "purchase_order": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "url": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "pdf_url": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "object": {
+      "type": [
+        "null",
+        "string"
+      ]
     }
   }
 }
