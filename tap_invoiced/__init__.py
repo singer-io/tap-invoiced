@@ -26,7 +26,7 @@ def main():
             sync_streams(args.config, args.state, args.catalog)
         except Exception as e:
             LOGGER.critical(e)
-            sys.exit(1)
+            raise e
 
 
 if __name__ == "__main__":

@@ -10,13 +10,6 @@
         "integer"
       ]
     },
-    "approval": {
-      "type": [
-        "null",
-        "object"
-      ],
-      "properties": {}
-    },
     "approved": {
       "type": [
         "null",
@@ -136,12 +129,6 @@
         "string"
       ]
     },
-    "paid": {
-      "type": [
-        "null",
-        "boolean"
-      ]
-    },
     "payment_terms": {
       "type": [
         "null",
@@ -192,6 +179,37 @@
         "string"
       ],
       "format": "date-time"
+    },
+    "purchase_order": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "ship_to": {
+      "type": [
+        "null",
+        "object"
+      ],
+      "properties": {}
+    },
+    "url": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "pdf_url": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "object": {
+      "type": [
+        "null",
+        "string"
+      ]
     }
   }
 }
