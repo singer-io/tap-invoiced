@@ -113,21 +113,21 @@ def sync(client, config, state, stream_name, schema, stream_metadata):
             LOGGER.info("{} objects returned".format(len(objects)))
 
             for obj in objects:
+                # Client-side guard: skip records older than the bookmark
+                # before paying the cost of dict(), clamping, and transform.
+                # Some API endpoints (e.g. plans) ignore the updated_after
+                # parameter and return all records regardless; filtering here
+                # ensures correctness for every stream.
+                stream_bookmark = obj.get(replication_key)
+                if stream_bookmark is not None and stream_bookmark < bookmark:
+                    continue
+
                 rec = dict(obj)
                 rec["created_at"] = max(0, rec["created_at"])
                 rec["updated_at"] = max(0, rec["updated_at"])
                 rec = transformer.transform(rec,
                                             schema,
                                             metadata=stream_metadata)
-
-                stream_bookmark = obj.get(replication_key)
-
-                # Client-side guard: skip records older than the bookmark.
-                # Some API endpoints (e.g. plans) ignore the updated_after
-                # parameter and return all records regardless; filtering here
-                # ensures correctness for every stream.
-                if stream_bookmark is not None and stream_bookmark < bookmark:
-                    continue
 
                 singer.write_record(stream_name,
                                     rec,
