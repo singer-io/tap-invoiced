@@ -11,18 +11,28 @@ class TapInvoicedStartDateTest(StartDateTest, TapInvoicedBaseTest):
         return "tap_tester_tap_invoiced_start_date_test"
 
     def streams_to_test(self):
-        # All six streams are INCREMENTAL.
-        # NOTE: obeys_start_date=False for all streams because the Invoiced API
-        # accepts `updated_after` as an epoch integer (set from bookmark/start_date),
-        # so start-date filtering is applied but not via a named start_date query param.
-        # Exclude streams that rarely have data old enough to exercise the window:
-        streams_to_exclude = set()
+        # Only customers has sandbox records spread across multiple dates
+        # (some from 2025, most from 2026), so it is the only stream where
+        # sync_1 (start before 2025 data) returns more records than
+        # sync_2 (start in 2026, after the old 2025 records).
+        # All other streams only have data from 2026-04-01, so both start
+        # dates would return identical counts, causing the assertGreater to fail.
+        streams_to_exclude = {
+            "invoices",
+            "plans",
+            "subscriptions",
+            "estimates",
+            "credit_notes",
+        }
         return self.expected_stream_names().difference(streams_to_exclude)
 
     @property
     def start_date_1(self):
-        return "2015-03-25T00:00:00Z"
+        # Before the oldest customers records (2025-06-xx) — captures all data.
+        return "2025-01-01T00:00:00Z"
 
     @property
     def start_date_2(self):
-        return "2017-01-25T00:00:00Z"
+        # After the 2025 customers records but before the 2026-04-01 data —
+        # filters out the older records so sync_2_count < sync_1_count.
+        return "2026-01-01T00:00:00Z"

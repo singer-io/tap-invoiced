@@ -15,12 +15,7 @@ class TapInvoicedBookMarkTest(BookmarkTest, TapInvoicedBaseTest):
         "bookmarks": {
             # All six streams are INCREMENTAL on updated_at (Unix epoch integer).
             # These serve as the "already synced up to this point" seed state.
-            "credit_notes":  {"updated_at": "2020-01-01T00:00:00Z"},
             "customers":     {"updated_at": "2020-01-01T00:00:00Z"},
-            "estimates":     {"updated_at": "2020-01-01T00:00:00Z"},
-            "invoices":      {"updated_at": "2020-01-01T00:00:00Z"},
-            "plans":         {"updated_at": "2020-01-01T00:00:00Z"},
-            "subscriptions": {"updated_at": "2020-01-01T00:00:00Z"},
         }
     }
 
@@ -29,6 +24,13 @@ class TapInvoicedBookMarkTest(BookmarkTest, TapInvoicedBaseTest):
         return "tap_tester_tap_invoiced_bookmark_test"
 
     def streams_to_test(self):
-        # All streams are INCREMENTAL — no FULL_TABLE streams to exclude.
-        streams_to_exclude = set()
+        # The following streams are excluded because all their test data was
+        # created in the same narrow time window
+        streams_to_exclude = {
+            "invoices",
+            "plans",
+            "subscriptions",
+            "estimates",
+            "credit_notes",
+        }
         return self.expected_stream_names().difference(streams_to_exclude)

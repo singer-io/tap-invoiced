@@ -24,7 +24,7 @@ class TapInvoicedBaseTest(BaseCase):
         """
         return "platform.invoiced"
 
-    def setUp(self):
+    def setUp(self, *args, **kwargs):
         """Fail fast with a clear message when required credential env vars are absent."""
         missing = [v for v in ["TAP_INVOICED_API_KEY"] if not os.getenv(v)]
         if missing:
@@ -33,7 +33,7 @@ class TapInvoicedBaseTest(BaseCase):
                 "Set them before running live integration tests:\n"
                 "  $env:TAP_INVOICED_API_KEY = '<your-api-key>'"
             )
-        super().setUp()
+        super().setUp(*args, **kwargs)
 
     def get_properties(self, original: bool = True):
         """Configuration properties required for the tap."""

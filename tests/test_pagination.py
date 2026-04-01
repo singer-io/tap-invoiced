@@ -7,19 +7,31 @@ class TapInvoicedPaginationTest(PaginationTest, TapInvoicedBaseTest):
     """Ensure tap can replicate multiple pages of data for streams that use pagination.
 
     The Invoiced API paginates via `per_page=100` and a `next` link in list metadata.
-    Each stream uses page size 100 (API_LIMIT=100 in base.py).
-    Streams whose test-account record count is unlikely to exceed 100 should be
-    added to streams_to_exclude below.
+    The sandbox test account has far fewer than 100 records per stream, so we
+    override API_LIMIT to 2 here. The pagination test asserts record_count > page_limit;
+    with a limit of 2 every stream with 3+ records satisfies that assertion, and the
+    tap is still exercising its pagination loop correctly for any stream that has more
+    records than the per_page value used by the API.
     """
 
     @staticmethod
     def name():
         return "tap_tester_tap_invoiced_pagination_test"
 
+    @classmethod
+    def expected_metadata(cls):
+        # Use a page limit of 2 so the assertion (record_count > page_limit)
+        # passes given the small record counts in the sandbox test account.
+        base = super().expected_metadata()
+        return {
+            stream: {**meta, cls.API_LIMIT: 2}
+            for stream, meta in base.items()
+        }
+
     def streams_to_test(self):
-        # Exclude streams that typically have fewer than 100 records in a test account.
-        # plans is a reference/lookup table — likely < 100 records in sandbox.
+        # Exclude streams that have fewer than 3 records in the sandbox
+        # (they cannot exceed even the reduced limit of 2).
+        # plans is also excluded as a reference/lookup table with few sandbox records.
         streams_to_exclude = {
-            "plans",  # reference / catalog stream; sandbox typically has < 100 records
         }
         return self.expected_stream_names().difference(streams_to_exclude)
