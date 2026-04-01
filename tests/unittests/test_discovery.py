@@ -97,9 +97,6 @@ class TestDiscoverStreams(unittest.TestCase):
         """The 'updated_at' field is marked as inclusion=automatic in every stream."""
         result = discover_streams()
         for entry in result["streams"]:
-            # plans schema uses 'updated' — skip if updated_at not present
-            if "updated_at" not in entry["schema"]["properties"]:
-                continue
             mdata_map = metadata.to_map(entry["metadata"])
             inclusion = metadata.get(mdata_map, ("properties", "updated_at"), "inclusion")
             self.assertEqual("automatic", inclusion,
