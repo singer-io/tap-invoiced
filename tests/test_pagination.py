@@ -29,9 +29,9 @@ class TapInvoicedPaginationTest(PaginationTest, TapInvoicedBaseTest):
         }
 
     def streams_to_test(self):
-        # Exclude streams that have fewer than 3 records in the sandbox
-        # (they cannot exceed even the reduced limit of 2).
-        # plans is also excluded as a reference/lookup table with few sandbox records.
+        # Currently we do not exclude any streams from the pagination test.
+        # This dictionary is kept to allow explicit exclusions (e.g., streams
+        # with very few sandbox records) to be added if needed in the future.
         streams_to_exclude = {
         }
         return self.expected_stream_names().difference(streams_to_exclude)
