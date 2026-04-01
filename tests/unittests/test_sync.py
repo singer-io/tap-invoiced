@@ -349,7 +349,7 @@ class TestSync(unittest.TestCase):
         mock_write_rec, mock_write_bm, mock_write_state
     ):
         """singer.write_record is called exactly once for each API record."""
-        mock_get_bm.return_value = None
+        mock_get_bm.return_value = 1
         records = [
             MockSDKObject({"id": 1, "created_at": 1000, "updated_at": 1000, "name": "Alice"}),
             MockSDKObject({"id": 2, "created_at": 2000, "updated_at": 2000, "name": "Bob"}),
@@ -391,7 +391,7 @@ class TestSync(unittest.TestCase):
         mock_write_rec, mock_write_bm, mock_write_state
     ):
         """sync() requests subsequent pages while the API signals more data."""
-        mock_get_bm.return_value = None
+        mock_get_bm.return_value = 1
         page1 = [MockSDKObject({"id": 1, "created_at": 1000, "updated_at": 1000, "name": "A"})]
         page2 = [MockSDKObject({"id": 2, "created_at": 2000, "updated_at": 2000, "name": "B"})]
         mock_fetch.side_effect = [
@@ -446,7 +446,7 @@ class TestSync(unittest.TestCase):
              "customers", _test_schema(), _test_stream_metadata())
 
         bookmark_values = [c[0][3] for c in mock_write_bm.call_args_list]
-        self.assertIn(3000, bookmark_values)
+        self.assertIn("1970-01-01T00:50:00.000000Z", bookmark_values)
 
     @patch("tap_invoiced.sync.singer.write_state")
     @patch("tap_invoiced.sync.singer.write_bookmark")
@@ -503,7 +503,7 @@ class TestSync(unittest.TestCase):
         mock_write_rec, mock_write_bm, mock_write_state
     ):
         """A negative created_at value is clamped to 0 before being emitted."""
-        mock_get_bm.return_value = None
+        mock_get_bm.return_value = 1
         records = [
             MockSDKObject({"id": 1, "created_at": -500, "updated_at": 1000, "name": "X"}),
         ]
@@ -527,7 +527,7 @@ class TestSync(unittest.TestCase):
         mock_write_rec, mock_write_bm, mock_write_state
     ):
         """A negative updated_at value is clamped to 0 before being emitted."""
-        mock_get_bm.return_value = None
+        mock_get_bm.return_value = -1000
         records = [
             MockSDKObject({"id": 1, "created_at": 1000, "updated_at": -100, "name": "Y"}),
         ]
@@ -551,7 +551,7 @@ class TestSync(unittest.TestCase):
         mock_write_rec, mock_write_bm, mock_write_state
     ):
         """singer.write_record is called with the correct stream name."""
-        mock_get_bm.return_value = None
+        mock_get_bm.return_value = 1
         records = [MockSDKObject({"id": 99, "created_at": 1, "updated_at": 1, "name": "Z"})]
         mock_fetch.return_value = _make_list_response(records, has_next=False)
 

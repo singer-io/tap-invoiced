@@ -25,6 +25,16 @@ jobs:
             uv pip install pytest coverage
             coverage run -m pytest tests/unittests
             coverage html
+      - run:
+          name: "Integration Tests"
+          command: |
+            source /usr/local/share/virtualenvs/tap-tester/bin/activate
+            uv pip install --upgrade awscli
+            aws s3 cp s3://com-stitchdata-dev-deployment-assets/environments/tap-tester/tap_tester_sandbox dev_env.sh
+            source dev_env.sh
+            unset USE_STITCH_BACKEND
+            uv pip install -e .
+            run-test --tap=tap-invoiced tests
 
       - store_test_results:
           path: test_output/report.xml
