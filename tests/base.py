@@ -44,7 +44,6 @@ class TapInvoicedBaseTest(BaseCase):
         if original:
             return return_value
 
-        return_value["start_date"] = self.start_date
         return return_value
 
     @staticmethod
