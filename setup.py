@@ -3,14 +3,14 @@ from setuptools import setup
 
 setup(
     name="tap-invoiced",
-    version="0.3.0",
+    version="1.0.0",
     description="Singer.io tap for extracting data from Invoiced",
     author="Invoiced",
     url="https://invoiced.com",
     classifiers=["Programming Language :: Python :: 3 :: Only"],
     py_modules=["tap_invoiced"],
     install_requires=[
-        "singer-python==6.1.1",
+        "singer-python==6.8.0",
         "invoiced==3.0.0",
         "backoff==2.2.1",
     ],
@@ -20,7 +20,7 @@ setup(
     """,
     packages=["tap_invoiced"],
     package_data={
-        "schemas": ["tap_invoiced/schemas/*.json"]
+        "tap_invoiced": ["schemas/*.json"]
     },
     include_package_data=True,
 )

@@ -1,5 +1,6 @@
 import singer
 from singer import utils, metadata, Transformer
+from datetime import datetime, timezone
 import invoiced
 import requests
 import backoff
@@ -91,6 +92,8 @@ def sync(client, config, state, stream_name, schema, stream_metadata):
     # Find our bookmark where our sync last ended
     # (or the start date if it's a new sync)
     stream_bookmark = singer.get_bookmark(state, stream_name, replication_key)
+    if isinstance(stream_bookmark, str):
+        stream_bookmark = int(utils.strptime_to_utc(stream_bookmark).timestamp())
     bookmark = stream_bookmark or \
         int(utils.strptime_to_utc(config["start_date"]).timestamp())
     max_bookmark = bookmark
@@ -110,6 +113,15 @@ def sync(client, config, state, stream_name, schema, stream_metadata):
             LOGGER.info("{} objects returned".format(len(objects)))
 
             for obj in objects:
+                # Client-side guard: skip records older than the bookmark
+                # before paying the cost of dict(), clamping, and transform.
+                # Some API endpoints (e.g. plans) ignore the updated_after
+                # parameter and return all records regardless; filtering here
+                # ensures correctness for every stream.
+                stream_bookmark = obj.get(replication_key)
+                if stream_bookmark is not None and stream_bookmark < bookmark:
+                    continue
+
                 rec = dict(obj)
                 rec["created_at"] = max(0, rec["created_at"])
                 rec["updated_at"] = max(0, rec["updated_at"])
@@ -121,14 +133,15 @@ def sync(client, config, state, stream_name, schema, stream_metadata):
                                     rec,
                                     time_extracted=extraction_time)
 
-                stream_bookmark = obj.get(replication_key)
-
-                if stream_bookmark > max_bookmark:
+                if stream_bookmark is not None and stream_bookmark > max_bookmark:
                     max_bookmark = stream_bookmark
+                    bookmark_iso = datetime.fromtimestamp(
+                        max_bookmark, tz=timezone.utc
+                    ).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
                     singer.write_bookmark(state,
                                           stream_name,
                                           replication_key,
-                                          max_bookmark)
+                                          bookmark_iso)
 
             # write state after every 100 records
             singer.write_state(state)

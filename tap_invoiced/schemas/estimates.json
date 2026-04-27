@@ -16,12 +16,6 @@
         "boolean"
       ]
     },
-    "balance": {
-      "type": [
-        "null",
-        "number"
-      ]
-    },
     "closed": {
       "type": [
         "null",

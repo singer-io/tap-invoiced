@@ -8,11 +8,11 @@ jobs:
       - run:
           name: 'Setup'
           command: |
-            uv venv --python 3.9 /usr/local/share/virtualenvs/tap-invoiced
+            uv venv --python 3.12 /usr/local/share/virtualenvs/tap-invoiced
             source /usr/local/share/virtualenvs/tap-invoiced/bin/activate
             uv pip install -U pip setuptools
             uv pip install .[dev]
-      - add_ssh_keys      
+      - add_ssh_keys
       - run:
           name: 'JSON Validator'
           command: |
@@ -22,8 +22,19 @@ jobs:
           name: 'Unit Tests'
           command: |
             source /usr/local/share/virtualenvs/tap-invoiced/bin/activate
-            pip install nose coverage
-            nosetests tests
+            uv pip install pytest coverage
+            coverage run -m pytest tests/unittests
+            coverage html
+      - run:
+          name: "Integration Tests"
+          command: |
+            source /usr/local/share/virtualenvs/tap-tester/bin/activate
+            uv pip install --upgrade awscli
+            aws s3 cp s3://com-stitchdata-dev-deployment-assets/environments/tap-tester/tap_tester_sandbox dev_env.sh
+            source dev_env.sh
+            unset USE_STITCH_BACKEND
+            uv pip install -e .
+            run-test --tap=tap-invoiced tests
 
       - store_test_results:
           path: test_output/report.xml
