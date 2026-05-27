@@ -1,16 +1,69 @@
 import os
 import json
+
+import singer
 from singer import metadata
+from invoiced.errors import ApiError
+
+from tap_invoiced.stream_access import check_stream_access
+
+LOGGER = singer.get_logger()
 
 KEY_PROPERTIES = ["id"]
 REPLICATION_KEY = "updated_at"
 
+STREAM_SDK_OBJECTS = {
+    "credit_notes": "CreditNote",
+    "customers": "Customer",
+    "estimates": "Estimate",
+    "invoices": "Invoice",
+    "plans": "Plan",
+    "subscriptions": "Subscription",
+}
 
-def discover_streams():
+
+class _InvoicedAuthError(Exception):
+    """Raised internally when an API probe returns HTTP 401 or 403."""
+
+
+def _check_stream_access(client, stream_name):
+    """
+    Probe the invoiced endpoint for *stream_name* with a single-record request
+    to verify that the credentials have read access.
+
+    Returns True if accessible, False on HTTP 401/403.
+    Any other exception is re-raised so genuine connectivity problems surface.
+    """
+    sdk_attr = STREAM_SDK_OBJECTS.get(stream_name)
+    if sdk_attr is None:
+        return True
+
+    sdk_object = getattr(client, sdk_attr)
+
+    def _probe():
+        try:
+            sdk_object.list(per_page=1, page=1)
+        except ApiError as exc:
+            if getattr(exc, "http_status", None) in (401, 403):
+                raise _InvoicedAuthError(str(exc)) from exc
+            raise
+
+    return check_stream_access(
+        stream_name,
+        probe_fn=_probe,
+        auth_error_types=_InvoicedAuthError,
+    )
+
+
+def discover_streams(client=None):
     raw_schemas = load_schemas()
     streams = []
 
     for schema_name, schema in raw_schemas.items():
+        # Skip streams that the credentials cannot read.
+        if client is not None and not _check_stream_access(client, schema_name):
+            continue
+
         # populate any metadata and stream's key properties here..
         stream_key_properties = KEY_PROPERTIES
         stream_metadata = get_metadata(schema,
