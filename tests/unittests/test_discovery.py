@@ -4,7 +4,7 @@ Covers: discover_streams(), load_schemas(), get_metadata(), field inclusion rule
 and stream access-checking logic (check_stream_access / _check_stream_access).
 """
 import unittest
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 
 from singer import metadata
 from invoiced.errors import ApiError
@@ -15,8 +15,8 @@ from tap_invoiced.discover import (
     get_metadata,
     _check_stream_access,
     _InvoicedAuthError,
-    STREAM_SDK_OBJECTS,
 )
+from tap_invoiced.constants import STREAM_SDK_OBJECTS
 from tap_invoiced.stream_access import check_stream_access
 
 EXPECTED_STREAMS = {
@@ -250,7 +250,7 @@ class TestGetMetadata(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestCheckStreamAccessHelper(unittest.TestCase):
-    """Tests for the reusable check_stream_access helper in tap_invoiced.utils."""
+    """Tests for the reusable check_stream_access helper in tap_invoiced.stream_access."""
 
     def test_returns_true_when_probe_succeeds(self):
         result = check_stream_access("invoices", probe_fn=lambda: None, auth_error_types=_InvoicedAuthError)

@@ -1,25 +1,14 @@
 import os
 import json
 
-import singer
 from singer import metadata
 from invoiced.errors import ApiError
 
 from tap_invoiced.stream_access import check_stream_access
-
-LOGGER = singer.get_logger()
+from tap_invoiced.constants import STREAM_SDK_OBJECTS
 
 KEY_PROPERTIES = ["id"]
 REPLICATION_KEY = "updated_at"
-
-STREAM_SDK_OBJECTS = {
-    "credit_notes": "CreditNote",
-    "customers": "Customer",
-    "estimates": "Estimate",
-    "invoices": "Invoice",
-    "plans": "Plan",
-    "subscriptions": "Subscription",
-}
 
 
 class _InvoicedAuthError(Exception):

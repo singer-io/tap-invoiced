@@ -6,16 +6,10 @@ import requests
 import backoff
 from invoiced.errors import ApiConnectionError, ApiError, RateLimitError
 
+from tap_invoiced.constants import STREAM_SDK_OBJECTS
+
 LOGGER = singer.get_logger()
 REPLICATION_KEY = "updated_at"
-STREAM_SDK_OBJECTS = {
-    'credit_notes': 'CreditNote',
-    'customers': 'Customer',
-    'estimates': 'Estimate',
-    'invoices': 'Invoice',
-    'plans': 'Plan',
-    'subscriptions': 'Subscription'
-}
 
 def sync_streams(config, state, catalog):
 

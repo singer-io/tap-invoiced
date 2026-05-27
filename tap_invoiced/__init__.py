@@ -12,7 +12,8 @@ LOGGER = singer.get_logger()
 
 def _build_client(config):
     """Build and return an invoiced.Client from the tap config."""
-    is_sandbox = config.get("sandbox") == "true"
+    sandbox = config.get("sandbox", False)
+    is_sandbox = sandbox if isinstance(sandbox, bool) else str(sandbox).lower() == "true"
     return invoiced.Client(config["api_key"], is_sandbox)
 
 
