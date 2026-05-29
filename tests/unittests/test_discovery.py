@@ -1,13 +1,22 @@
 """Unit tests for tap_invoiced.discover module.
 
-Covers: discover_streams(), load_schemas(), get_metadata(), field inclusion rules.
+Covers: discover_streams(), load_schemas(), get_metadata(), field inclusion rules,
+and stream access-checking logic (check_stream_access).
 """
 import unittest
 from unittest.mock import patch, MagicMock
 
 from singer import metadata
+from invoiced.errors import ApiError
 
-from tap_invoiced.discover import discover_streams, load_schemas, get_metadata
+from tap_invoiced.discover import (
+    discover_streams,
+    load_schemas,
+    get_metadata,
+    InvoicedForbiddenError,
+)
+from tap_invoiced.constants import STREAM_SDK_OBJECTS
+from tap_invoiced.stream_access import check_stream_access, InvoicedStreamAccessError
 
 EXPECTED_STREAMS = {
     "credit_notes",
@@ -22,20 +31,28 @@ EXPECTED_STREAMS = {
 class TestDiscoverStreams(unittest.TestCase):
     """discover_streams() returns a well-formed Singer catalog."""
 
+    def setUp(self):
+        self.mock_client = MagicMock()
+        self.patcher = patch("tap_invoiced.discover.check_stream_access")
+        self.patcher.start()
+
+    def tearDown(self):
+        self.patcher.stop()
+
     def test_returns_streams_key(self):
         """discover_streams() result contains the 'streams' key."""
-        result = discover_streams()
+        result = discover_streams(self.mock_client)
         self.assertIn("streams", result)
 
     def test_returns_all_six_streams(self):
         """discover_streams() includes all six expected tap_stream_ids."""
-        result = discover_streams()
+        result = discover_streams(self.mock_client)
         stream_ids = {s["tap_stream_id"] for s in result["streams"]}
         self.assertEqual(EXPECTED_STREAMS, stream_ids)
 
     def test_each_entry_has_required_catalog_keys(self):
         """Every stream entry has stream, tap_stream_id, schema, metadata, key_properties."""
-        result = discover_streams()
+        result = discover_streams(self.mock_client)
         required_keys = ("stream", "tap_stream_id", "schema", "metadata", "key_properties")
         for entry in result["streams"]:
             for key in required_keys:
@@ -43,32 +60,32 @@ class TestDiscoverStreams(unittest.TestCase):
 
     def test_stream_name_matches_tap_stream_id(self):
         """stream and tap_stream_id are equal in every catalog entry."""
-        result = discover_streams()
+        result = discover_streams(self.mock_client)
         for entry in result["streams"]:
             self.assertEqual(entry["stream"], entry["tap_stream_id"])
 
     def test_key_properties_is_id_for_all_streams(self):
         """All streams use ['id'] as their key_properties."""
-        result = discover_streams()
+        result = discover_streams(self.mock_client)
         for entry in result["streams"]:
             self.assertEqual(["id"], entry["key_properties"])
 
     def test_each_schema_has_properties(self):
         """Every stream schema includes a non-empty 'properties' object."""
-        result = discover_streams()
+        result = discover_streams(self.mock_client)
         for entry in result["streams"]:
             self.assertIn("properties", entry["schema"])
             self.assertGreater(len(entry["schema"]["properties"]), 0)
 
     def test_metadata_is_list(self):
         """Metadata for every stream is a list (Singer format)."""
-        result = discover_streams()
+        result = discover_streams(self.mock_client)
         for entry in result["streams"]:
             self.assertIsInstance(entry["metadata"], list)
 
     def test_forced_replication_method_is_incremental(self):
         """All streams are set to INCREMENTAL replication via metadata."""
-        result = discover_streams()
+        result = discover_streams(self.mock_client)
         for entry in result["streams"]:
             mdata_map = metadata.to_map(entry["metadata"])
             method = metadata.get(mdata_map, (), "forced-replication-method")
@@ -77,7 +94,7 @@ class TestDiscoverStreams(unittest.TestCase):
 
     def test_valid_replication_key_is_updated_at(self):
         """All streams declare 'updated_at' as their valid replication key."""
-        result = discover_streams()
+        result = discover_streams(self.mock_client)
         for entry in result["streams"]:
             mdata_map = metadata.to_map(entry["metadata"])
             rep_keys = metadata.get(mdata_map, (), "valid-replication-keys")
@@ -86,7 +103,7 @@ class TestDiscoverStreams(unittest.TestCase):
 
     def test_id_field_inclusion_is_automatic(self):
         """The 'id' field is marked as inclusion=automatic in every stream."""
-        result = discover_streams()
+        result = discover_streams(self.mock_client)
         for entry in result["streams"]:
             mdata_map = metadata.to_map(entry["metadata"])
             inclusion = metadata.get(mdata_map, ("properties", "id"), "inclusion")
@@ -95,7 +112,7 @@ class TestDiscoverStreams(unittest.TestCase):
 
     def test_updated_at_field_inclusion_is_automatic(self):
         """The 'updated_at' field is marked as inclusion=automatic in every stream."""
-        result = discover_streams()
+        result = discover_streams(self.mock_client)
         for entry in result["streams"]:
             mdata_map = metadata.to_map(entry["metadata"])
             inclusion = metadata.get(mdata_map, ("properties", "updated_at"), "inclusion")
@@ -233,6 +250,103 @@ class TestGetMetadata(unittest.TestCase):
         mdata = get_metadata(schema, ["id"], "INCREMENTAL", "updated_at")
         mdata_map = metadata.to_map(mdata)
         self.assertEqual("automatic", metadata.get(mdata_map, ("properties", "updated"), "inclusion"))
+
+
+# ---------------------------------------------------------------------------
+# check_stream_access (tap_invoiced.stream_access)
+# ---------------------------------------------------------------------------
+
+class TestCheckStreamAccess(unittest.TestCase):
+    """Tests for check_stream_access in tap_invoiced.stream_access."""
+
+    def _make_client(self, side_effect=None):
+        client = MagicMock()
+        sdk_obj = MagicMock()
+        if side_effect:
+            sdk_obj.list.side_effect = side_effect
+        for attr in STREAM_SDK_OBJECTS.values():
+            setattr(client, attr, sdk_obj)
+        return client, sdk_obj
+
+    def test_returns_true_when_accessible(self):
+        client, sdk_obj = self._make_client()
+        result = check_stream_access(client, "invoices")
+        self.assertIsNone(result)
+        sdk_obj.list.assert_called_once_with(per_page=1, page=1)
+
+    def test_raises_stream_access_error_on_403(self):
+        exc = ApiError()
+        exc.http_status = 403
+        client, _ = self._make_client(side_effect=exc)
+        with self.assertRaises(InvoicedStreamAccessError):
+            check_stream_access(client, "customers")
+
+    def test_raises_stream_access_error_on_401(self):
+        exc = ApiError()
+        exc.http_status = 401
+        client, _ = self._make_client(side_effect=exc)
+        with self.assertRaises(InvoicedStreamAccessError):
+            check_stream_access(client, "invoices")
+
+    def test_reraises_non_auth_api_error(self):
+        exc = ApiError()
+        exc.http_status = 500
+        client, _ = self._make_client(side_effect=exc)
+        with self.assertRaises(ApiError):
+            check_stream_access(client, "invoices")
+
+    def test_unknown_stream_returns_none(self):
+        client, sdk_obj = self._make_client()
+        result = check_stream_access(client, "unknown_stream")
+        self.assertIsNone(result)
+        sdk_obj.list.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# discover_streams() with client (access-gated discovery)
+# ---------------------------------------------------------------------------
+
+class TestDiscoverStreamsWithClient(unittest.TestCase):
+    """Tests for discover_streams() when a client is supplied."""
+
+    @patch("tap_invoiced.discover.check_stream_access")
+    def test_all_accessible_all_in_catalog(self, mock_check):
+        """All streams accessible → all six appear in the catalog."""
+        mock_check.return_value = None
+        client = MagicMock()
+        result = discover_streams(client)
+        stream_ids = {s["tap_stream_id"] for s in result["streams"]}
+        self.assertEqual(EXPECTED_STREAMS, stream_ids)
+
+    @patch("tap_invoiced.discover.check_stream_access")
+    def test_inaccessible_stream_excluded(self, mock_check):
+        """A stream raising InvoicedStreamAccessError is excluded from the catalog."""
+        blocked = "invoices"
+        def _side_effect(client, name):
+            if name == blocked:
+                raise InvoicedStreamAccessError(name)
+        mock_check.side_effect = _side_effect
+        client = MagicMock()
+        result = discover_streams(client)
+        stream_ids = {s["tap_stream_id"] for s in result["streams"]}
+        self.assertNotIn(blocked, stream_ids)
+        self.assertEqual(EXPECTED_STREAMS - {blocked}, stream_ids)
+
+    @patch("tap_invoiced.discover.check_stream_access")
+    def test_all_inaccessible_raises_exception(self, mock_check):
+        """All streams inaccessible → raises InvoicedForbiddenError."""
+        mock_check.side_effect = InvoicedStreamAccessError
+        client = MagicMock()
+        with self.assertRaises(InvoicedForbiddenError):
+            discover_streams(client)
+
+    @patch("tap_invoiced.discover.check_stream_access")
+    def test_check_called_once_per_stream(self, mock_check):
+        """check_stream_access is called exactly once per stream."""
+        mock_check.return_value = None
+        client = MagicMock()
+        discover_streams(client)
+        self.assertEqual(len(EXPECTED_STREAMS), mock_check.call_count)
 
 
 if __name__ == "__main__":

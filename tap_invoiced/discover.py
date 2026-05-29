@@ -1,16 +1,39 @@
 import os
 import json
+
+import singer
 from singer import metadata
+
+from tap_invoiced.stream_access import check_stream_access, InvoicedStreamAccessError
+
+LOGGER = singer.get_logger()
 
 KEY_PROPERTIES = ["id"]
 REPLICATION_KEY = "updated_at"
 
 
-def discover_streams():
+class InvoicedForbiddenError(Exception):
+    """Raised when none of the streams are accessible with the given credentials."""
+
+
+def discover_streams(client):
     raw_schemas = load_schemas()
     streams = []
+    excluded_streams = []
 
     for schema_name, schema in raw_schemas.items():
+        # Skip streams that the credentials cannot read.
+        try:
+            check_stream_access(client, schema_name)
+        except InvoicedStreamAccessError:
+            LOGGER.warning(
+                "Stream '%s' is not accessible with the provided credentials and "
+                "has been excluded from the catalog.",
+                schema_name,
+            )
+            excluded_streams.append(schema_name)
+            continue
+
         # populate any metadata and stream's key properties here..
         stream_key_properties = KEY_PROPERTIES
         stream_metadata = get_metadata(schema,
@@ -27,6 +50,12 @@ def discover_streams():
             'key_properties': stream_key_properties
         }
         streams.append(catalog_entry)
+
+    # If all streams are inaccessible, raise an exception.
+    if excluded_streams and not streams:
+        raise InvoicedForbiddenError(
+            "The credentials do not have read access to any of the supported streams."
+        )
 
     return {'streams': streams}
 

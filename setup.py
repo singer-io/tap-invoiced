@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name="tap-invoiced",
-    version="1.0.0",
+    version="1.0.1",
     description="Singer.io tap for extracting data from Invoiced",
     author="Invoiced",
     url="https://invoiced.com",
@@ -14,6 +14,12 @@ setup(
         "invoiced==3.0.0",
         "backoff==2.2.1",
     ],
+    extras_require={
+        'dev': [
+            'pytest',
+            'coverage'
+        ]
+    },
     entry_points="""
     [console_scripts]
     tap-invoiced=tap_invoiced:main
