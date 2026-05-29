@@ -4,7 +4,7 @@ import json
 import singer
 from singer import metadata
 
-from tap_invoiced.stream_access import check_stream_access
+from tap_invoiced.stream_access import check_stream_access, InvoicedStreamAccessError
 
 LOGGER = singer.get_logger()
 
@@ -16,14 +16,21 @@ class InvoicedForbiddenError(Exception):
     """Raised when none of the streams are accessible with the given credentials."""
 
 
-def discover_streams(client=None):
+def discover_streams(client):
     raw_schemas = load_schemas()
     streams = []
     excluded_streams = []
 
     for schema_name, schema in raw_schemas.items():
         # Skip streams that the credentials cannot read.
-        if client is not None and not check_stream_access(client, schema_name):
+        try:
+            check_stream_access(client, schema_name)
+        except InvoicedStreamAccessError:
+            LOGGER.warning(
+                "Stream '%s' is not accessible with the provided credentials and "
+                "has been excluded from the catalog.",
+                schema_name,
+            )
             excluded_streams.append(schema_name)
             continue
 
@@ -45,19 +52,9 @@ def discover_streams(client=None):
         streams.append(catalog_entry)
 
     # If all streams are inaccessible, raise an exception.
-    if client is not None and excluded_streams and not streams:
+    if excluded_streams and not streams:
         raise InvoicedForbiddenError(
-            "HTTP-error-code: 403, Error: The credentials do not have read access to any "
-            "of the streams supported by the tap. Data collection cannot proceed due to "
-            "lack of permissions."
-        )
-
-    # Log excluded streams as a single warning.
-    if excluded_streams:
-        LOGGER.warning(
-            "The following stream(s) are not accessible with the provided credentials "
-            "and have been excluded from the catalog: %s",
-            ", ".join(excluded_streams),
+            "The credentials do not have read access to any of the supported streams."
         )
 
     return {'streams': streams}
