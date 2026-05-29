@@ -1,32 +1,26 @@
-import singer
+from invoiced.errors import ApiError
 
-LOGGER = singer.get_logger()
+from tap_invoiced.constants import STREAM_SDK_OBJECTS
 
 
-def check_stream_access(stream_name, probe_fn, auth_error_types, fallback_accessible=False):
+def check_stream_access(client, stream_name):
     """
-    Probe a stream endpoint and return True if accessible, False on auth error.
+    Probe the Invoiced API endpoint for *stream_name* with a minimal request
+    to verify that the credentials have read access.
 
-    :param stream_name: Used in log messages.
-    :param probe_fn: Zero-argument callable that performs the API probe.
-    :param auth_error_types: Exception type(s) indicating 401/403 — returns False.
-    :param fallback_accessible: If True, non-auth errors (e.g. unexpected API
-        behaviour on minimal probe params) are treated as auth-OK and return True.
-        If False (default), they are re-raised.
+    Returns True if accessible, False on HTTP 401/403.
+    Any other API error is re-raised so genuine connectivity problems surface.
     """
-    try:
-        probe_fn()
-        LOGGER.info("Stream '%s' is accessible.", stream_name)
+    sdk_attr = STREAM_SDK_OBJECTS.get(stream_name)
+    if sdk_attr is None:
         return True
-    except auth_error_types:
-        LOGGER.warning(
-            "Stream '%s' is not accessible with the provided credentials. "
-            "It will be excluded from the catalog.",
-            stream_name,
-        )
-        return False
-    except Exception:
-        if fallback_accessible:
-            LOGGER.info("Stream '%s' endpoint reachable (auth OK).", stream_name)
-            return True
+
+    sdk_object = getattr(client, sdk_attr)
+
+    try:
+        sdk_object.list(per_page=1, page=1)
+        return True
+    except ApiError as exc:
+        if getattr(exc, "http_status", None) in (401, 403):
+            return False
         raise

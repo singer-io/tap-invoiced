@@ -1,56 +1,30 @@
 import os
 import json
 
+import singer
 from singer import metadata
-from invoiced.errors import ApiError
 
 from tap_invoiced.stream_access import check_stream_access
-from tap_invoiced.constants import STREAM_SDK_OBJECTS
+
+LOGGER = singer.get_logger()
 
 KEY_PROPERTIES = ["id"]
 REPLICATION_KEY = "updated_at"
 
 
-class _InvoicedAuthError(Exception):
-    """Raised internally when an API probe returns HTTP 401 or 403."""
-
-
-def _check_stream_access(client, stream_name):
-    """
-    Probe the invoiced endpoint for *stream_name* with a single-record request
-    to verify that the credentials have read access.
-
-    Returns True if accessible, False on HTTP 401/403.
-    Any other exception is re-raised so genuine connectivity problems surface.
-    """
-    sdk_attr = STREAM_SDK_OBJECTS.get(stream_name)
-    if sdk_attr is None:
-        return True
-
-    sdk_object = getattr(client, sdk_attr)
-
-    def _probe():
-        try:
-            sdk_object.list(per_page=1, page=1)
-        except ApiError as exc:
-            if getattr(exc, "http_status", None) in (401, 403):
-                raise _InvoicedAuthError(str(exc)) from exc
-            raise
-
-    return check_stream_access(
-        stream_name,
-        probe_fn=_probe,
-        auth_error_types=_InvoicedAuthError,
-    )
+class InvoicedForbiddenError(Exception):
+    """Raised when none of the streams are accessible with the given credentials."""
 
 
 def discover_streams(client=None):
     raw_schemas = load_schemas()
     streams = []
+    excluded_streams = []
 
     for schema_name, schema in raw_schemas.items():
         # Skip streams that the credentials cannot read.
-        if client is not None and not _check_stream_access(client, schema_name):
+        if client is not None and not check_stream_access(client, schema_name):
+            excluded_streams.append(schema_name)
             continue
 
         # populate any metadata and stream's key properties here..
@@ -69,6 +43,22 @@ def discover_streams(client=None):
             'key_properties': stream_key_properties
         }
         streams.append(catalog_entry)
+
+    # If all streams are inaccessible, raise an exception.
+    if client is not None and excluded_streams and not streams:
+        raise InvoicedForbiddenError(
+            "HTTP-error-code: 403, Error: The credentials do not have read access to any "
+            "of the streams supported by the tap. Data collection cannot proceed due to "
+            "lack of permissions."
+        )
+
+    # Log excluded streams as a single warning.
+    if excluded_streams:
+        LOGGER.warning(
+            "The following stream(s) are not accessible with the provided credentials "
+            "and have been excluded from the catalog: %s",
+            ", ".join(excluded_streams),
+        )
 
     return {'streams': streams}
 

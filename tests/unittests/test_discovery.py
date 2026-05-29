@@ -1,7 +1,7 @@
 """Unit tests for tap_invoiced.discover module.
 
 Covers: discover_streams(), load_schemas(), get_metadata(), field inclusion rules,
-and stream access-checking logic (check_stream_access / _check_stream_access).
+and stream access-checking logic (check_stream_access).
 """
 import unittest
 from unittest.mock import patch, MagicMock
@@ -13,8 +13,7 @@ from tap_invoiced.discover import (
     discover_streams,
     load_schemas,
     get_metadata,
-    _check_stream_access,
-    _InvoicedAuthError,
+    InvoicedForbiddenError,
 )
 from tap_invoiced.constants import STREAM_SDK_OBJECTS
 from tap_invoiced.stream_access import check_stream_access
@@ -246,60 +245,24 @@ class TestGetMetadata(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# check_stream_access (shared utils helper)
+# check_stream_access (tap_invoiced.stream_access)
 # ---------------------------------------------------------------------------
 
-class TestCheckStreamAccessHelper(unittest.TestCase):
-    """Tests for the reusable check_stream_access helper in tap_invoiced.stream_access."""
-
-    def test_returns_true_when_probe_succeeds(self):
-        result = check_stream_access("invoices", probe_fn=lambda: None, auth_error_types=_InvoicedAuthError)
-        self.assertTrue(result)
-
-    def test_returns_false_on_auth_error(self):
-        def _raise():
-            raise _InvoicedAuthError("403 Forbidden")
-
-        result = check_stream_access("invoices", probe_fn=_raise, auth_error_types=_InvoicedAuthError)
-        self.assertFalse(result)
-
-    def test_reraises_non_auth_error_when_fallback_false(self):
-        def _raise():
-            raise RuntimeError("network error")
-
-        with self.assertRaises(RuntimeError):
-            check_stream_access("invoices", probe_fn=_raise, auth_error_types=_InvoicedAuthError,
-                                fallback_accessible=False)
-
-    def test_returns_true_on_non_auth_error_when_fallback_true(self):
-        def _raise():
-            raise RuntimeError("400 Bad Request")
-
-        result = check_stream_access("invoices", probe_fn=_raise, auth_error_types=_InvoicedAuthError,
-                                     fallback_accessible=True)
-        self.assertTrue(result)
-
-
-# ---------------------------------------------------------------------------
-# _check_stream_access (tap-invoiced-specific wrapper)
-# ---------------------------------------------------------------------------
-
-class TestInvoicedCheckStreamAccess(unittest.TestCase):
-    """Tests for the _check_stream_access wrapper in tap_invoiced.discover."""
+class TestCheckStreamAccess(unittest.TestCase):
+    """Tests for check_stream_access in tap_invoiced.stream_access."""
 
     def _make_client(self, side_effect=None):
         client = MagicMock()
         sdk_obj = MagicMock()
         if side_effect:
             sdk_obj.list.side_effect = side_effect
-        # Make getattr(client, sdk_attr) return the mock sdk_obj
         for attr in STREAM_SDK_OBJECTS.values():
             setattr(client, attr, sdk_obj)
         return client, sdk_obj
 
     def test_returns_true_when_accessible(self):
         client, sdk_obj = self._make_client()
-        result = _check_stream_access(client, "invoices")
+        result = check_stream_access(client, "invoices")
         self.assertTrue(result)
         sdk_obj.list.assert_called_once_with(per_page=1, page=1)
 
@@ -307,14 +270,14 @@ class TestInvoicedCheckStreamAccess(unittest.TestCase):
         exc = ApiError()
         exc.http_status = 403
         client, _ = self._make_client(side_effect=exc)
-        result = _check_stream_access(client, "customers")
+        result = check_stream_access(client, "customers")
         self.assertFalse(result)
 
     def test_returns_false_on_401_api_error(self):
         exc = ApiError()
         exc.http_status = 401
         client, _ = self._make_client(side_effect=exc)
-        result = _check_stream_access(client, "invoices")
+        result = check_stream_access(client, "invoices")
         self.assertFalse(result)
 
     def test_reraises_non_auth_api_error(self):
@@ -322,11 +285,11 @@ class TestInvoicedCheckStreamAccess(unittest.TestCase):
         exc.http_status = 500
         client, _ = self._make_client(side_effect=exc)
         with self.assertRaises(ApiError):
-            _check_stream_access(client, "invoices")
+            check_stream_access(client, "invoices")
 
     def test_unknown_stream_returns_true(self):
         client, sdk_obj = self._make_client()
-        result = _check_stream_access(client, "unknown_stream")
+        result = check_stream_access(client, "unknown_stream")
         self.assertTrue(result)
         sdk_obj.list.assert_not_called()
 
@@ -338,7 +301,7 @@ class TestInvoicedCheckStreamAccess(unittest.TestCase):
 class TestDiscoverStreamsWithClient(unittest.TestCase):
     """Tests for discover_streams() when a client is supplied."""
 
-    @patch("tap_invoiced.discover._check_stream_access")
+    @patch("tap_invoiced.discover.check_stream_access")
     def test_all_accessible_all_in_catalog(self, mock_check):
         """All streams accessible → all six appear in the catalog."""
         mock_check.return_value = True
@@ -347,7 +310,7 @@ class TestDiscoverStreamsWithClient(unittest.TestCase):
         stream_ids = {s["tap_stream_id"] for s in result["streams"]}
         self.assertEqual(EXPECTED_STREAMS, stream_ids)
 
-    @patch("tap_invoiced.discover._check_stream_access")
+    @patch("tap_invoiced.discover.check_stream_access")
     def test_inaccessible_stream_excluded(self, mock_check):
         """A stream returning False from access check is excluded from the catalog."""
         blocked = "invoices"
@@ -358,17 +321,17 @@ class TestDiscoverStreamsWithClient(unittest.TestCase):
         self.assertNotIn(blocked, stream_ids)
         self.assertEqual(EXPECTED_STREAMS - {blocked}, stream_ids)
 
-    @patch("tap_invoiced.discover._check_stream_access")
-    def test_all_inaccessible_returns_empty_catalog(self, mock_check):
-        """All streams inaccessible → empty streams list."""
+    @patch("tap_invoiced.discover.check_stream_access")
+    def test_all_inaccessible_raises_exception(self, mock_check):
+        """All streams inaccessible → raises InvoicedForbiddenError."""
         mock_check.return_value = False
         client = MagicMock()
-        result = discover_streams(client)
-        self.assertEqual([], result["streams"])
+        with self.assertRaises(InvoicedForbiddenError):
+            discover_streams(client)
 
-    @patch("tap_invoiced.discover._check_stream_access")
+    @patch("tap_invoiced.discover.check_stream_access")
     def test_check_called_once_per_stream(self, mock_check):
-        """_check_stream_access is called exactly once per stream."""
+        """check_stream_access is called exactly once per stream."""
         mock_check.return_value = True
         client = MagicMock()
         discover_streams(client)
